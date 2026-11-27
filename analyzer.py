@@ -4,7 +4,6 @@ import chess.engine
 from config import ANALYSIS_DEPTH, SHALLOW_DEPTH, MATE_SCORE
 from features import piece_counts, king_features
 
-
 def _limit(depth):
     return chess.engine.Limit(depth=depth)
 
@@ -28,8 +27,9 @@ def search_position(engine, board):
         else:
             cp, mate = 0, None
         return {
-            "cp": cp, "mate": mate, "best": None,
-            "shallowCp": cp, "shallowBest": None, "shallowRegretCp": 0,
+            "cp": cp, "mate": mate, "best": None, "bestSan": None,
+            "shallowCp": cp, "shallowBest": None, "shallowBestSan": None,
+            "shallowRegretCp": 0,
         }, None
 
     deep = engine.analyse(board, _limit(ANALYSIS_DEPTH))
@@ -48,14 +48,16 @@ def search_position(engine, board):
         regret = max(
             0,
             _cp(deep["score"], board.turn) - _cp(restricted["score"], board.turn),
-        )
+            )
 
     return {
         "cp": _cp(deep["score"], chess.WHITE),
         "mate": deep["score"].white().mate(),
         "best": best.uci() if best else None,
+        "bestSan": board.san(best) if best else None,
         "shallowCp": _cp(shallow["score"], chess.WHITE),
         "shallowBest": shallow_best.uci() if shallow_best else None,
+        "shallowBestSan": board.san(shallow_best) if shallow_best else None,
         "shallowRegretCp": regret,
     }, best
 
