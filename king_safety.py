@@ -1,16 +1,24 @@
 
 import chess
+from material import material_phase
 
+# Kings are deliberately absent: a king approaching the other king in an
+# endgame is not an attack.
+ATTACKER_WEIGHT = {
+    chess.QUEEN: 4,
+    chess.ROOK: 3,
+    chess.BISHOP: 2,
+    chess.KNIGHT: 2,
+    chess.PAWN: 1,
+}
 
-def analyze_king(board, color):
+def analyze_king(board, color, phase):
     king_square = board.king(color)
 
     if king_square is None:
         return {
-            "kingRank": None,
-            "shieldPawns": None,
-            "openAdjacentFiles": None,
-            "enemyPiecesNear": None,
+            "kingRank": None, "shieldPawns": None, "openAdjacentFiles": None,
+            "enemyPiecesNear": None, "attackWeight": None, "dangerScore": None,
             "inCheck": False,
         }
 
@@ -51,20 +59,26 @@ def analyze_king(board, color):
 
     # Count enemy pieces within two squares (Chebyshev distance).
     enemy_pieces_near = 0
+    attack_weight = 0
 
     for square, piece in board.piece_map().items():
         if piece.color == color:
             continue
 
-        file_distance = abs(
-            chess.square_file(square) - king_file
-        )
-        rank_distance = abs(
-            chess.square_rank(square) - king_rank
-        )
+        weight = ATTACKER_WEIGHT.get(piece.piece_type, 0)
+        if weight == 0:
+            continue
+
+        file_distance = abs(chess.square_file(square) - king_file)
+        rank_distance = abs(chess.square_rank(square) - king_rank)
 
         if max(file_distance, rank_distance) <= 2:
             enemy_pieces_near += 1
+            attack_weight += weight
+
+    # About 10 weight units (queen + rook + minor) saturates. Endgame kings
+    # keep a floor of 0.3 so queen endings can still feel dangerous.
+    danger = min(1.0, attack_weight / 10.0) * (0.3 + 0.7 * phase)
 
     # Only the side to move can legally be in check.
     in_check = (
@@ -83,12 +97,15 @@ def analyze_king(board, color):
         "shieldPawns": shield_pawns,
         "openAdjacentFiles": open_files,
         "enemyPiecesNear": enemy_pieces_near,
+        "attackWeight": attack_weight,
+        "dangerScore": danger,
         "inCheck": in_check,
     }
 
 
 def analyze_king_safety(board):
+    phase = material_phase(board)
     return {
-        "white": analyze_king(board, chess.WHITE),
-        "black": analyze_king(board, chess.BLACK),
+        "white": analyze_king(board, chess.WHITE, phase),
+        "black": analyze_king(board, chess.BLACK, phase),
     }

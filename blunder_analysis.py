@@ -1,34 +1,24 @@
 
 import math
 
-from config import (
-    INACCURACY_THRESHOLD,
-    MISTAKE_THRESHOLD,
-    BLUNDER_THRESHOLD,
-    BLUNDER_WINDOW_PLIES,
-)
+from config import INACCURACY_WIN, MISTAKE_WIN, BLUNDER_WIN, BLUNDER_WINDOW_PLIES
 
-
-def classify_regret(regret_cp):
-    if regret_cp is None:
+def classify_regret(regret):          # win% points
+    if regret is None:
         return None
-
-    if regret_cp >= BLUNDER_THRESHOLD:
+    if regret >= BLUNDER_WIN:
         return "blunder"
-    if regret_cp >= MISTAKE_THRESHOLD:
+    if regret >= MISTAKE_WIN:
         return "mistake"
-    if regret_cp >= INACCURACY_THRESHOLD:
+    if regret >= INACCURACY_WIN:
         return "inaccuracy"
-
     return "minor"
 
-
-def regret_activity(regret_cp):
-    """Convert centipawn regret into a continuous 0-1 measure."""
-    if regret_cp is None:
+def regret_activity(regret):
+    """Convert win%-point regret into a continuous 0-1 measure."""
+    if regret is None:
         return 0.0
-
-    return 1.0 - math.exp(-regret_cp / 150.0)
+    return 1.0 - math.exp(-regret / 10.0)
 
 
 def analyze_blunders(positions):
@@ -69,7 +59,7 @@ def analyze_blunders(positions):
             analyzed.append(result)
             continue
 
-        regret = move.get("moveRegretCp")
+        regret = move.get("moveRegretWin")
         mover = move.get("side")
 
         classification = classify_regret(regret)

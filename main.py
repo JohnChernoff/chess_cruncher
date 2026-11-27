@@ -6,7 +6,7 @@ import chess.engine
 
 from config import *
 from analyzer import analyze_game
-
+from blunder_analysis import analyze_blunders
 
 def analyze_collection():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -66,6 +66,8 @@ def analyze_collection():
                             MAX_PLIES,
                         )
 
+                        analysis["positions"] = analyze_blunders(analysis["positions"])
+
                         result = {
                             "event": game.headers.get("Event", ""),
                             "round": game.headers.get("Round", str(game_number)),
@@ -76,6 +78,7 @@ def analyze_collection():
                             "source": pgn_path.name,
                             "analyzedPlies": analysis["analyzedPlies"],
                             "positions": analysis["positions"],
+                            "analysisSettings": {"depth": ANALYSIS_DEPTH, "shallowDepth": SHALLOW_DEPTH}
                         }
 
                         games.append(result)
@@ -99,7 +102,7 @@ def analyze_collection():
             }
 
             with open(output_path, "w", encoding="utf-8") as out:
-                json.dump(collection, out, indent=2)
+                json.dump(collection, out)
 
             print(f"  Wrote {len(games)} games to {output_path}")
 

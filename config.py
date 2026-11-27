@@ -13,10 +13,13 @@ ENGINE_HASH_MB = 256
 ANALYSIS_DEPTH = 8
 SHALLOW_DEPTH = 2
 
-INACCURACY_THRESHOLD = 50
-MISTAKE_THRESHOLD = 100
-BLUNDER_THRESHOLD = 250
+MATE_SCORE = 10000   # mate in n scores as ±(MATE_SCORE - n)
+CP_CLAMP = 1000      # stored/graphed centipawns are clamped to ±this
 
+# Move-quality thresholds: mover's loss in win percentage points (0-100 scale).
+INACCURACY_WIN = 5
+MISTAKE_WIN = 10
+BLUNDER_WIN = 15
 BLUNDER_WINDOW_PLIES = 8
 
 TEST_GAME_INDEX = 0
