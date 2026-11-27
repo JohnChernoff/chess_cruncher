@@ -1,120 +1,82 @@
-
-import chess.pgn
 import json
-from pathlib import Path
+
 import chess.engine
+import chess.pgn
 
-from config import *
+from config import (
+    ANALYSIS_DEPTH, SHALLOW_DEPTH, MATE_SCORE, FORMAT_VERSION,
+    ENGINE_THREADS, ENGINE_HASH_MB, STOCKFISH_PATH,
+    INPUT_DIR, OUTPUT_DIR, GAME_LIMIT, MAX_PLIES,
+)
 from analyzer import analyze_game
-from blunder_analysis import analyze_blunders
 
-def analyze_collection():
+
+def analyze_collection(engine_path=STOCKFISH_PATH):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     pgn_files = sorted(INPUT_DIR.glob("*.pgn"))
-
     if not pgn_files:
         print(f"No PGN files found in {INPUT_DIR}")
         return
 
-    engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
+    engine = chess.engine.SimpleEngine.popen_uci(str(engine_path))
+    engine.configure({"Threads": ENGINE_THREADS, "Hash": ENGINE_HASH_MB})
 
-    engine.configure({
-        "Threads": ENGINE_THREADS,
-        "Hash": ENGINE_HASH_MB,
-    })
+    engine_info = {
+        "name": engine.id.get("name", "unknown"),
+        "depth": ANALYSIS_DEPTH,
+        "shallowDepth": SHALLOW_DEPTH,
+        "mateScore": MATE_SCORE,
+    }
 
-    total_games = 0
-    successful_games = 0
-    failed_games = 0
+    total = ok = failed = 0
 
     try:
         for pgn_path in pgn_files:
             print(f"\nReading {pgn_path.name}")
-
             games = []
 
-            with open(pgn_path, encoding="utf-8-sig") as pgn_file:
-                game_number = 0
-
+            with open(pgn_path, encoding="utf-8-sig") as f:
+                number = 0
                 while True:
-                    game = chess.pgn.read_game(pgn_file)
-
+                    game = chess.pgn.read_game(f)
                     if game is None:
                         break
+                    if GAME_LIMIT is not None and number >= GAME_LIMIT:
+                        break
 
-                    print(f"    PGN length: {game.end().ply()} plies")
-
-                    game_number += 1
-                    total_games += 1
-
+                    number += 1
+                    total += 1
                     white = game.headers.get("White", "White")
                     black = game.headers.get("Black", "Black")
+                    print(f"  Game {number}: {white} vs {black}", end=" ... ", flush=True)
 
                     try:
-                        print(
-                            f"  Game {game_number}: "
-                            f"{white} vs {black}",
-                            end=" ... ",
-                            flush=True,
-                        )
-
-                        analysis = analyze_game(
-                            engine,
-                            game,
-                            ANALYSIS_DEPTH,
-                            MAX_PLIES,
-                        )
-
-                        analysis["positions"] = analyze_blunders(analysis["positions"])
-
-                        result = {
-                            "event": game.headers.get("Event", ""),
-                            "round": game.headers.get("Round", str(game_number)),
-                            "white": white,
-                            "black": black,
-                            "result": game.headers.get("Result", "*"),
-                            "date": game.headers.get("Date", ""),
-                            "source": pgn_path.name,
-                            "analyzedPlies": analysis["analyzedPlies"],
-                            "positions": analysis["positions"],
-                            "analysisSettings": {"depth": ANALYSIS_DEPTH, "shallowDepth": SHALLOW_DEPTH}
-                        }
-
-                        games.append(result)
-
-                        successful_games += 1
-                        print(f"OK ({len(analysis['positions'])} positions)")
-
+                        games.append(analyze_game(engine, game, MAX_PLIES))
+                        ok += 1
+                        print(f"OK ({len(games[-1]['plies']) - 1} plies)")
                     except Exception as e:
-                        failed_games += 1
+                        failed += 1
                         print(f"FAILED: {e}")
-
-            # Write one JSON file containing all successfully analyzed games.
-            output_path = OUTPUT_DIR / f"{pgn_path.stem}.xpgn.json"
 
             collection = {
                 "format": "XPGN",
-                "version": 1,
+                "version": FORMAT_VERSION,
                 "source": pgn_path.name,
+                "engine": engine_info,
                 "gameCount": len(games),
                 "games": games,
             }
 
-            with open(output_path, "w", encoding="utf-8") as out:
-                json.dump(collection, out)
+            out_path = OUTPUT_DIR / f"{pgn_path.stem}.xpgn.json"
+            with open(out_path, "w", encoding="utf-8") as out:
+                json.dump(collection, out, separators=(",", ":"))
 
-            print(f"  Wrote {len(games)} games to {output_path}")
-
+            print(f"  Wrote {len(games)} games to {out_path}")
     finally:
         engine.quit()
 
-    print("\nCollection analysis complete")
-    print(f"PGN files:       {len(pgn_files)}")
-    print(f"Games found:     {total_games}")
-    print(f"Successful:      {successful_games}")
-    print(f"Failed:          {failed_games}")
-    print(f"Output folder:   {OUTPUT_DIR}")
+    print(f"\nGames found: {total}   Successful: {ok}   Failed: {failed}")
 
 
 if __name__ == "__main__":

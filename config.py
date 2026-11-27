@@ -1,31 +1,26 @@
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent
-INPUT_DIR = Path("input")
-
-PGN_FILE = PROJECT_DIR / "input" / "wc.pgn"
+INPUT_DIR = PROJECT_DIR / "input"
 OUTPUT_DIR = PROJECT_DIR / "output"
 STOCKFISH_PATH = PROJECT_DIR / "engine" / "stockfish.exe"
 
 ENGINE_THREADS = 4
 ENGINE_HASH_MB = 256
 
+# Deep search used for evaluations and for judging the played move.
 ANALYSIS_DEPTH = 8
+# Shallow search; how much it disagrees with the deep one is a proxy for
+# tactical complexity.
 SHALLOW_DEPTH = 2
 
-MATE_SCORE = 10000   # mate in n scores as ±(MATE_SCORE - n)
-CP_CLAMP = 1000      # stored/graphed centipawns are clamped to ±this
+# Mate in n is stored as +/-(MATE_SCORE - n) centipawns. Written into the
+# file so the Dart reader always agrees with whatever was used here.
+MATE_SCORE = 10000
 
-# Move-quality thresholds: mover's loss in win percentage points (0-100 scale).
-INACCURACY_WIN = 5
-MISTAKE_WIN = 10
-BLUNDER_WIN = 15
-BLUNDER_WINDOW_PLIES = 8
+FORMAT_VERSION = 2
 
-TEST_GAME_INDEX = 0
-
-STORE_PV = False
-PV_LENGTH = 8
-
-# Set to None to analyze the entire game.
+# Set to an int to analyze only the first N games of each file; None = all.
+GAME_LIMIT = None
+# Set to an int to stop each game after N plies; None = the whole game.
 MAX_PLIES = None
